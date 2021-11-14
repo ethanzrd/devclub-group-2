@@ -8,7 +8,8 @@
     "server": "nodemon server.js",
     "frontend": "npm start --prefix ../frontend",
     "frontendInstall": "npm install --prefix frontend",
-    "dev": "concurrently \"npm run server\" \"npm run frontend\""
+    "dev": "concurrently \"npm run server\" \"npm run frontend\"",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false --prefix ../frontend && npm run build --prefix ../frontend"
   },
   "author": "",
   "license": "ISC",
