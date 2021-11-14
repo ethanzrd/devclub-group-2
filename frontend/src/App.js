@@ -1,24 +1,24 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter, Route, Switch, Redirect } from "react-router-dom";
+import React, {useEffect} from 'react';
+import {BrowserRouter as Router, Route, Switch, Redirect} from "react-router-dom";
 import axios from 'axios';
 import Admin from "layouts/Admin.js";
-
+import AuthState from '../src/context/auth/AuthState'
+import AlertState from '../src/context/alert/AlertState'
 
 const App = () => {
 
-  useEffect(() => {
-    axios
-      .get('http://localhost:8080/example')
-      .then(({ data }) => console.log(data))
-      .catch(console.log);
-  }, [])
-
-  return (
-    <BrowserRouter>
-      <Switch>
-        <Route path="/admin" component={Admin} />
-        <Redirect from="/" to="/admin/dashboard" />
-      </Switch>
-    </BrowserRouter>
-  )
+    return (
+        <AuthState>
+            <AlertState>
+                <Router>
+                    <Switch>
+                        <Route path="/admin" component={Admin}/>
+                        <Redirect from="admin/dashboard" to="/admin/login"/>
+                    </Switch>
+                </Router>
+            </AlertState>
+        </AuthState>
+    )
 }
+
+export default App;

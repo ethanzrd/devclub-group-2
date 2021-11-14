@@ -17,17 +17,17 @@ router.get('/logged-in', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
         if (!user) {
-            return res.status(404).json("Could not find a user with provided id.");
+            return res.status(404).json({errors: [{msg: "Could not find a user with provided id."}]});
         }
-        res.json(user);
+        res.json({user: user});
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server Error');
+        return res.status(500).json({errors: [{msg: 'Server Error'}]});
     }
 });
 
 // @route     POST api/auth
-// @desc      Auth user & get token
+// @desc      auth user & get token
 // @access    Public
 router.post('/login', [
         body('email', 'Please include a valid email.').isEmail(),
@@ -44,13 +44,13 @@ router.post('/login', [
             let user = await User.findOne({email});
 
             if (!user) {
-                return res.status(400).json({msg: 'Invalid credentials'});
+                return res.status(400).json({errors: [{msg: 'Invalid credentials'}]});
             }
 
             const isMatch = await bcrypt.compare(password, user.password);
 
             if (!isMatch) {
-                return res.status(400).json({msg: 'Invalid credentials'});
+                return res.status(400).json({errors: [{msg: 'Invalid credentials'}]});
             }
 
             const payload = {
@@ -67,12 +67,12 @@ router.post('/login', [
                 },
                 (err, token) => {
                     if (err) throw err;
-                    res.json({token});
+                    res.json({token: token});
                 }
             )
         } catch (err) {
             console.error(err);
-            res.status(500).send('Server Error');
+            return res.status(500).json({errors: [{msg: 'Server Error'}]});
         }
     }
 )

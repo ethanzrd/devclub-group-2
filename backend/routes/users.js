@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const auth = require('../middleware/auth');
 const {body, query, validationResult} = require('express-validator');
 const User = require('../models/UserModel');
 const mongoose = require("mongoose");
@@ -27,11 +28,10 @@ const checkIdValid = (id, errorArr) => {
 router.get('/all', async (req, res) => {
     try {
         const users = await User.find();
-        res.json(users);
+        res.json({successes: [{data: users}]});
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
-    }
+        return res.status(500).json({errors: [{msg: 'Server Error'}]});    }
 });
 
 // @route     GET api/users/get-user?id=1234
@@ -57,18 +57,19 @@ router.get('/get-user', [
             return res.status(404).json({msg: 'Could not find a user with the specified id.'});
         }
 
-        res.json(user);
+        res.json({successes: [{data: user}]});
     } catch (err) {
         console.error(err);
-        res.status(500).send('Server Error');
-    }
+        return res.status(500).json({errors: [{msg: 'Server Error'}]});    }
 });
 
 // @route     POST api/register
 // @desc      Get all users
 // @access    Public
 router.post('/register', [
-        body('name', 'Please add a name.').not().isEmpty(),
+        body('firstName', 'Please add a first name.').not().isEmpty(),
+        body('lastName', 'Please add a first name.').not().isEmpty(),
+        body('username', 'Please add an username.').not().isEmpty(),
         body('email', 'Please include a valid email.').isEmail(),
         body('password', 'Please enter a password with 6 or more characters.').isLength({min: 6})
     ], async (req, res) => {
@@ -78,19 +79,20 @@ router.post('/register', [
             return res.status(400).json({errors: errors.array()});
         }
 
-        const {name, email, password} = req.body;
+        const {firstName, lastName, username, email, password} = req.body;
 
         try {
             let user = await User.findOne({email});
-
-            if (user) {
-                return res.status(400).json({msg: 'User already exists.'});
-            }
+            if (user) return res.status(400).json({errors: [{"msg": 'This user already exists.'}]});
+            user = await User.findOne({username});
+            if (user) return res.status(400).json({errors: [{"msg": 'A user with this username already exists'}]});
 
             user = new User({
-                name,
+                firstName,
+                lastName,
+                username,
                 email,
-                password
+                password,
             });
 
             const salt = await bcrypt.genSalt(10);
@@ -113,20 +115,60 @@ router.post('/register', [
                 },
                 (err, token) => {
                     if (err) throw err;
-                    res.json({token});
+                    res.json({token: token});
                 }
             )
         } catch (err) {
             console.error(err.message);
-            res.status(500).send('Server Error');
-        }
+            return res.status(500).json({errors: [{msg: 'Server Error'}]});        }
     }
 );
 
-// @route     DELETE api/users/delete-user
-// @desc      Auth user and delete by id
+// @route     PUT api/users/edit
+// @desc      Update user
 // @access    Private
-router.delete('/delete-user', [
+router.put('/edit', auth, async (req, res) => {
+    const {firstName, lastName, username, email} = req.body;
+
+    const userFields = {};
+    if (firstName) userFields.firstName = firstName;
+    if (lastName) userFields.lastName = lastName;
+    if (username) userFields.username = username;
+    if (email) userFields.email = email;
+
+    if ([firstName, lastName, username, email].every(field => userFields[field])) return;
+
+    try {
+        let user = await User.findById(req.query.id);
+
+        if (!user) return res.status(404).json({errors: [{msg: 'User not found.'}]});
+
+        if (user.id !== req.user.id) return res.status(401).json({errors: [{msg: 'Not authorized.'}]});
+
+        user = await User.findOne({email});
+        if (user && user.email !== email) return res.status(400).json({errors: [{"msg": 'A user with this email address already exists'}]});
+        user = await User.findOne({username});
+        if (user && user.username !== username) return res.status(400).json({errors: [{"msg": 'A user with this username already exists'}]});
+
+        user = await User.findByIdAndUpdate(
+            req.query.id,
+            {$set: userFields},
+            {new: true}
+        );
+
+        res.json({user: user});
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({errors: [{msg: 'Server error.'}]});
+    }
+
+})
+
+
+// @route     DELETE api/users/delete-user
+// @desc      auth user and delete by id
+// @access    Private
+router.delete('/delete', auth, [
     query('id', 'A valid user id is required.').exists()
 ], async (req, res) => {
 
@@ -142,16 +184,18 @@ router.delete('/delete-user', [
         const user = await User.findById(id);
 
         if (!user) {
-            return res.status(404).json({msg: 'Could not find a user with provided id.'});
+            return res.status(404).json({errors: [{msg: 'Could not find a user with provided id.'}]});
         }
+
+        if (req.user.id !== id) return res.status(401).json({errors: [{msg: "You're unauthorized to delete this account."}]})
 
         await user.delete();
 
-        return res.json({msg: 'User successfully deleted.'});
+        return res.json({successes: [{msg: 'User successfully deleted.'}]});
 
     } catch (err) {
         console.error(err);
-        res.send('Server Error');
+        return res.status(500).json({errors: [{msg: 'Server Error'}]});
     }
 
 

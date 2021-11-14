@@ -18,6 +18,7 @@
     "react-chartist": "0.13.3",
     "react-dom": "16.9.0",
     "react-google-maps": "9.4.5",
+    "react-icons": "^4.3.1",
     "react-router-dom": "5.0.1",
     "react-scripts": "^3.1.0",
     "react-swipeable-views": "0.13.3"
@@ -65,5 +66,5 @@
     ],
     "development": []
   },
-  "proxy": "http://localhost:5000"
+  "proxy": "http://localhost:4000"
 }
